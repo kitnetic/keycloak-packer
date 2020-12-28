@@ -20,19 +20,18 @@ sudo -E apt-get install -y software-properties-common git python-dev htop ntp jq
 # Disable daily apt unattended updates.
 echo 'APT::Periodic::Enable "0";' >> /etc/apt/apt.conf.d/10periodic
 
-wget https://bootstrap.pypa.io/get-pip.py
-python get-pip.py || python2 get-pip.py
+echo "about to install awscli"
 
-if [[ -f /sys/hypervisor/uuid && `head -c 3 /sys/hypervisor/uuid` == "ec2" ]]; then
+if sudo test -f /sys/hypervisor/uuid -a `head -c 3 /sys/hypervisor/uuid` = "ec2"; then
   # install AWS-specific plugins only if running on AWS
   # see http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html
   echo "Found old EC2 - Installing AWS CLI"
-  pip install boto awscli || pip2 install boto awscli
-elif [[ -f /sys/devices/virtual/dmi/id/product_uuid && `sudo head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "EC2" ]]; then
+  sudo apt-get install awscli
+elif sudo test -f /sys/devices/virtual/dmi/id/product_uuid -a `head -c 3 /sys/devices/virtual/dmi/id/product_uuid | tr [:lower:] [:upper:]` = "EC2"; then
   # install AWS-specific plugins only if running on AWS
   # see http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html
   echo "Found new EC2 - Installing AWS CLI"
-  pip install boto awscli || pip2 install boto awscli
+  sudo apt-get install awscli
 elif (sudo dmidecode -s system-product-name | grep -q "Google Compute Engine"); then
   # install Google Compute specific plugins only if running on GCP
   echo "Found GCP - Installing ..... ??"

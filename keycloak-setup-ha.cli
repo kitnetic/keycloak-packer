@@ -1,0 +1,10 @@
+# enable proxy ip forwarding
+/subsystem=undertow/server=default-server/https-listener=https: write-attribute(name=proxy-address-forwarding, value=true)
+# enable https/http working behing a load balancer
+/subsystem=undertow/server=default-server/http-listener=default: write-attribute(name=proxy-address-forwarding, value=true)
+/socket-binding-group=standard-sockets/socket-binding=proxy-https/:add(port=443)
+/subsystem=undertow/server=default-server/http-listener=default: write-attribute(name=redirect-socket, value=proxy-https)
+# set ip addresses to get from env at runtime
+/interface=private:write-attribute(name=inet-address, value=${env.PRIVATE_IP:127.0.0.1})
+/interface=public:write-attribute(name=inet-address, value=${env.PRIVATE_IP:127.0.0.1})
+
