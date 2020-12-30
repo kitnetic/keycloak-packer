@@ -65,8 +65,23 @@
       "execute_command": "echo '' | {{ .Vars }} sudo -E -S sh '{{ .Path }}'"
     },
     {
+      "type": "file",
+      "source": "module.xml",
+      "destination": "module.xml"
+    },
+    {
       "type": "shell",
       "script": "install-database-drivers.sh",
+      "execute_command": "echo '' | {{ .Vars }} sudo -E -S sh '{{ .Path }}'"
+    },
+    {
+      "type": "file",
+      "source": "keycloak-setup-ha.cli",
+      "destination": "keycloak-setup-ha.cli"
+    },
+    {
+      "type": "shell",
+      "script": "prepare-keycloak-ha.sh",
       "execute_command": "echo '' | {{ .Vars }} sudo -E -S sh '{{ .Path }}'"
     }
   ]

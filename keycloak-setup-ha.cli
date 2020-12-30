@@ -1,3 +1,6 @@
+embed-server --server-config=standalone-ha.xml --std-out=echo
+
+batch
 # enable proxy ip forwarding
 /subsystem=undertow/server=default-server/https-listener=https: write-attribute(name=proxy-address-forwarding, value=true)
 # enable https/http working behing a load balancer
@@ -7,4 +10,59 @@
 # set ip addresses to get from env at runtime
 /interface=private:write-attribute(name=inet-address, value=${env.PRIVATE_IP:127.0.0.1})
 /interface=public:write-attribute(name=inet-address, value=${env.PRIVATE_IP:127.0.0.1})
+# add data sources
+/subsystem=datasources/data-source=KeycloakDS: remove()
+/subsystem=datasources/data-source=KeycloakDS: add(jndi-name=java:jboss/datasources/KeycloakDS,enabled=true,use-java-context=true,use-ccm=true, connection-url=jdbc:mariadb://${env.DB_ADDR:mariadb}:${env.DB_PORT:3306}/${env.DB_DATABASE:keycloak}, driver-name=mariadb)
+/subsystem=datasources/data-source=KeycloakDS: write-attribute(name=user-name, value=${env.DB_USER:keycloak})
+/subsystem=datasources/data-source=KeycloakDS: write-attribute(name=password, value=${env.DB_PASSWORD:password})
+/subsystem=datasources/data-source=KeycloakDS: write-attribute(name=check-valid-connection-sql, value="SELECT 1")
+/subsystem=datasources/data-source=KeycloakDS: write-attribute(name=background-validation, value=true)
+/subsystem=datasources/data-source=KeycloakDS: write-attribute(name=background-validation-millis, value=60000)
+/subsystem=datasources/data-source=KeycloakDS: write-attribute(name=flush-strategy, value=IdleConnections)
+/subsystem=datasources/jdbc-driver=mariadb:add(driver-name=mariadb, driver-module-name=org.mariadb, driver-xa-datasource-class-name=org.mariadb.jdbc.MySQLDataSource, driver-class-name=org.mariadb.jdbc.Driver)
+run-batch
 
+# jgroups info
+
+batch
+# remove the default TCP stack
+/subsystem=jgroups/stack=tcp:remove()
+#create our new TCP stack based on S3_PING protocol
+/subsystem=jgroups/stack=tcp:add()
+run-batch
+
+batch
+/subsystem=jgroups/stack=tcp/transport=TCP:add(socket-binding="jgroups-tcp")
+/subsystem=jgroups/stack=tcp/protocol=S3_PING: add(properties=[access_key="${env.AWS_ACCESS_KEY:}",secret_access_key="${env.AWS_SECRET:}",location="${env.S3_PING_BUCKET:}"])
+/subsystem=jgroups/stack=tcp/protocol=MERGE3:add()
+/subsystem=jgroups/stack=tcp/protocol=FD_SOCK:add(socket-binding="jgroups-tcp-fd")
+#/subsystem=jgroups/stack=tcp/protocol=FD:add()
+/subsystem=jgroups/stack=tcp/protocol=FD_ALL:add()
+/subsystem=jgroups/stack=tcp/protocol=VERIFY_SUSPECT:add()
+/subsystem=jgroups/stack=tcp/protocol=pbcast.NAKACK2:add()
+/subsystem=jgroups/stack=tcp/protocol=UNICAST3:add()
+/subsystem=jgroups/stack=tcp/protocol=pbcast.STABLE:add()
+/subsystem=jgroups/stack=tcp/protocol=pbcast.GMS:add()
+/subsystem=jgroups/stack=tcp/protocol=pbcast.GMS/property=max_join_attempts:add(value=5)
+/subsystem=jgroups/stack=tcp/protocol=MFC:add()
+/subsystem=jgroups/stack=tcp/protocol=FRAG3:add()
+
+#set the tcp stack as the one used for the channel
+/subsystem=jgroups/channel=ee:write-attribute(name=stack, value=tcp)
+/subsystem=jgroups/channel=ee:write-attribute(name=cluster, value=env.KEYCLOAK_CLUSTER_NAME:ejb)
+
+# remove the unused UDP stack
+/subsystem=jgroups/stack=udp:remove()
+
+/socket-binding-group=standard-sockets/socket-binding=jgroups-mping:remove()
+run-batch
+
+batch
+# cache settings
+/subsystem=infinispan/cache-container=keycloak/distributed-cache=sessions:write-attribute(name=owners, value=${env.CACHE_OWNERS:2})
+/subsystem=infinispan/cache-container=keycloak/distributed-cache=authenticationSessions:write-attribute(name=owners, value=${env.CACHE_OWNERS:2})
+/subsystem=infinispan/cache-container=keycloak/distributed-cache=offlineSessions:write-attribute(name=owners, value=${env.CACHE_OWNERS:2})
+/subsystem=infinispan/cache-container=keycloak/distributed-cache=loginFailures:write-attribute(name=owners, value=${env.CACHE_OWNERS:2})
+run-batch
+
+stop-embedded-server
