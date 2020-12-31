@@ -2,13 +2,13 @@
 
 set -e
 
-if [[ -f /sys/hypervisor/uuid && `head -c 3 /sys/hypervisor/uuid` == "ec2" ]]; then
+if sudo test -f /sys/hypervisor/uuid -a `head -c 3 /sys/hypervisor/uuid` = "ec2"; then
   # install AWS-specific stuff only if running on AWS
   echo "Found old EC2 - Installing Cloudwatch Agent"
   curl -L -O https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
   sudo dpkg -i -E ./amazon-cloudwatch-agent.deb
   rm ./amazon-cloudwatch-agent.deb
-elif [[ -f /sys/devices/virtual/dmi/id/product_uuid && `sudo head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "EC2" ]]; then
+elif sudo test -f /sys/devices/virtual/dmi/id/product_uuid -a `head -c 3 /sys/devices/virtual/dmi/id/product_uuid | tr [:lower:] [:upper:]` = "EC2"; then
   # install AWS-specific stuff only if running on AWS
   echo "Found new EC2 - Installing Cloudwatch Agent"
   curl -L -O https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
