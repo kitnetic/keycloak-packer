@@ -6,7 +6,7 @@
       "ami_name": "keycloak-{{user `keycloak_version`}}-{{isotime | clean_resource_name}}",
       "availability_zone": "{{user `aws_az`}}",
       "iam_instance_profile": "packer",
-      "instance_type": "t3.small",
+      "instance_type": "t3.medium",
       "region": "{{user `aws_region`}}",
       "vpc_id": "{{user `aws_vpc_id`}}",
       "subnet_id": "{{user `aws_subnet_id`}}",
@@ -17,7 +17,7 @@
       "source_ami_filter": {
         "filters": {
           "virtualization-type": "hvm",
-          "name": "*ubuntu-bionic-18.04-amd64-server-20190814*",
+          "name": "*ubuntu-bionic-18.04-amd64-server-202012*",
           "root-device-type": "ebs"
         },
         "owners": ["{{user `image_owner_id`}}"],
@@ -26,7 +26,7 @@
       "ssh_timeout": "10m",
       "ssh_username": "ubuntu",
       "tags": {
-        "ImageType": "confluent-kafka-zoo-oss"
+        "ImageType": "keycloak"
       }
     },
     {
@@ -50,11 +50,38 @@
     },
     {
       "type": "shell",
-      "script": "install-monitoring-and-logging.sh"
+      "script": "install-monitoring-and-logging.sh",
+      "execute_command": "echo '' | {{ .Vars }} sudo -E -S sh '{{ .Path }}'"
     },
     {
       "type": "shell",
       "script": "install-openjdk11.sh",
+      "execute_command": "echo '' | {{ .Vars }} sudo -E -S sh '{{ .Path }}'"
+    },
+    {
+      "type": "shell",
+      "script": "install-keycloak.sh",
+      "environment_vars": [ "KEYCLOAK_VERSION={{user `keycloak_version`}}" ],
+      "execute_command": "echo '' | {{ .Vars }} sudo -E -S sh '{{ .Path }}'"
+    },
+    {
+      "type": "file",
+      "source": "module.xml",
+      "destination": "module.xml"
+    },
+    {
+      "type": "shell",
+      "script": "install-database-drivers.sh",
+      "execute_command": "echo '' | {{ .Vars }} sudo -E -S sh '{{ .Path }}'"
+    },
+    {
+      "type": "file",
+      "source": "keycloak-setup-ha.cli",
+      "destination": "keycloak-setup-ha.cli"
+    },
+    {
+      "type": "shell",
+      "script": "prepare-keycloak-ha.sh",
       "execute_command": "echo '' | {{ .Vars }} sudo -E -S sh '{{ .Path }}'"
     }
   ]
